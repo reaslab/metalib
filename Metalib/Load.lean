@@ -16,3 +16,12 @@ def loadFrontend (inputCtx : InputContext) (initState : Syntax → MessageLog �
   let (header, parserState, messages) ← parseHeader inputCtx
   let commandState ← initState header messages inputCtx
   return ({ inputCtx }, { commandState, parserState, cmdPos := parserState.pos, commands := #[] })
+
+def loadFile (path : FilePath) : IO (Context × State) := do
+  let input ← IO.FS.readFile path
+  let inputCtx := mkInputContext input path.toString
+  loadFrontend inputCtx
+
+def withFile {α : Type _} (path : FilePath) (m : FrontendM α) : IO (α × State) := do
+  let (context, state) ← loadFile path
+  m context |>.run state
