@@ -4,12 +4,13 @@ open Lean Elab Meta Parser PrettyPrinter Tactic
 
 def localDeclToBinder : LocalDecl → MetaM (TSyntax ``Term.bracketedBinder)
   | .cdecl _ _ name type bi _ => do
+    let ident := mkIdent name
     let type ← delab (← instantiateMVars type)
     match bi with
-    | .default => `(bracketedBinder| ($(mkIdent name) : $type))
-    | .implicit => `(bracketedBinder| {$(mkIdent name) : $type})
+    | .default => `(bracketedBinder| ($ident : $type))
+    | .implicit => `(bracketedBinder| {$ident : $type})
     | .instImplicit => `(bracketedBinder| [$type])
-    | .strictImplicit => `(bracketedBinder| ⦃$(mkIdent name) : $type⦄)
+    | .strictImplicit => `(bracketedBinder| ⦃$ident : $type⦄)
   | .ldecl .. => pure ⟨ .missing ⟩  -- FIXME: handle let-bindings?
 
 def contextToBinders : MetaM (TSyntaxArray ``Term.bracketedBinder) := do
@@ -22,9 +23,14 @@ def contextToBinders : MetaM (TSyntaxArray ``Term.bracketedBinder) := do
     binders := binders.push (← localDeclToBinder ldecl)
   return binders
 
-def goalToDeclSig (goal : MVarId) : MetaM (TSyntax ``Command.declSig) :=
+def goalToDecl (goal : MVarId) (name : Name) : MetaM (TSyntax `command) :=
   withEnableInfoTree false <| goal.withContext do
     let binders ← contextToBinders
-    let type ← goal.getType
-    let type ← delab (← instantiateMVars type)
-    `(declSig| $[$binders]* : $type)
+    let type ← instantiateMVars (← goal.getType)
+    let typeTerm ← delab type
+    let isProp := (← inferType type).isProp
+    let ident := mkIdent name
+    if isProp then
+      `(theorem $ident $[$binders]* : $typeTerm := sorry)
+    else
+      `(def $ident $[$binders]* : $typeTerm := sorry)
