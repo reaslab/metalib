@@ -13,8 +13,7 @@ def localDeclToBinder : LocalDecl → MetaM (TSyntax ``Term.bracketedBinder)
     | .strictImplicit => `(bracketedBinder| ⦃$ident : $type⦄)
   | .ldecl .. => pure ⟨ .missing ⟩  -- FIXME: handle let-bindings?
 
-def contextToBinders : MetaM (TSyntaxArray ``Term.bracketedBinder) := do
-  let lctx ← getLCtx
+def contextToBinders (lctx : LocalContext) : MetaM (TSyntaxArray ``Term.bracketedBinder) := do
   let lctx : LocalContext := lctx.sanitizeNames.run' { options := ← getOptions }
   let mut binders := Array.mkEmpty lctx.size
   for ldecl in lctx do
@@ -25,8 +24,24 @@ def contextToBinders : MetaM (TSyntaxArray ``Term.bracketedBinder) := do
 
 def goalToDecl (goal : MVarId) (name : Name) : MetaM (TSyntax `command) :=
   withEnableInfoTree false <| goal.withContext do
-    let binders ← contextToBinders
+    let lctx ← getLCtx
+    let binders ← contextToBinders lctx
     let type ← instantiateMVars (← goal.getType)
+    let typeTerm ← delab type
+    let isProp := (← inferType type).isProp
+    let ident := mkIdent name
+    if isProp then
+      `(theorem $ident $[$binders]* : $typeTerm := sorry)
+    else
+      `(def $ident $[$binders]* : $typeTerm := sorry)
+
+def goal2ToDecl (goal1 goal2 : MVarId) (name : Name) : MetaM (TSyntax `command) :=
+  withEnableInfoTree false <| goal1.withContext do
+    let lctx ← getLCtx
+    let type2 ← instantiateMVars (← goal2.getType)
+    let lctx := lctx.mkLocalDecl (← mkFreshFVarId) `hg2 type2
+    let binders ← contextToBinders lctx
+    let type ← instantiateMVars (← goal1.getType)
     let typeTerm ← delab type
     let isProp := (← inferType type).isProp
     let ident := mkIdent name
