@@ -22,6 +22,8 @@ def contextToBinders (lctx : LocalContext) : MetaM (TSyntaxArray ``Term.brackete
     binders := binders.push (← localDeclToBinder ldecl)
   return binders
 
+/-- Construct a declaration from `goal1`. For now one should explicitly
+check the existence of `goal1` and `goal2`.  -/
 def goalToDecl (goal : MVarId) (name : Name) : MetaM (TSyntax `command) :=
   withEnableInfoTree false <| goal.withContext do
     let lctx ← getLCtx
@@ -35,10 +37,13 @@ def goalToDecl (goal : MVarId) (name : Name) : MetaM (TSyntax `command) :=
     else
       `(def $ident $[$binders]* : $typeTerm := sorry)
 
+/-- Construct a declaration from `goal1` and `goal2`. For now one should explicitly
+check the existence of `goal1` and `goal2`.  -/
 def goal2ToDecl (goal1 goal2 : MVarId) (name : Name) : MetaM (TSyntax `command) :=
   withEnableInfoTree false <| goal1.withContext do
     let lctx ← getLCtx
     let type2 ← instantiateMVars (← goal2.getType)
+    -- add `hg2` of the goal2 type to the local context of goal1 for proof
     let lctx := lctx.mkLocalDecl (← mkFreshFVarId) `hg2 type2
     let binders ← contextToBinders lctx
     let type ← instantiateMVars (← goal1.getType)
