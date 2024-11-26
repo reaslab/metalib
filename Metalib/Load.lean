@@ -21,3 +21,7 @@ def loadFile (path : FilePath) (initState : Syntax → MessageLog → InputConte
   let input ← IO.FS.readFile path
   let inputCtx := mkInputContext input path.toString
   loadFrontend inputCtx initState
+
+def withFile {α : Type _} (path : FilePath) (m : FrontendM α) (initState : Syntax → MessageLog → InputContext → IO Command.State := handleHeader) : IO (α × State) := do
+  let (context, state) ← loadFile path initState
+  m context |>.run state
