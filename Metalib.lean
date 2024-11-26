@@ -3,3 +3,4 @@
 import Metalib.Info
 import Metalib.Load
 import Metalib.Parse
+import Metalib.Declaration
