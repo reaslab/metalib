@@ -31,4 +31,9 @@ def runParserFnM (fn : ParserFn) (input : String) (filename : String := "") : m 
 
 def parseTerm : String → m Syntax := runParserFnM termParser.fn
 
+def parseGoal (vars : Array (Name × String)) (name : Name) (type : String) : TermElabM MVarId :=
+  withLocalDeclsD (vars.map fun (n, t) => (n, fun _ => do elabType (← parseTerm t))) fun _ => do
+    let type ← elabType (← parseTerm type)
+    let mvar ← mkFreshExprMVar type .synthetic (userName := name)
+    pure mvar.mvarId!
 end
